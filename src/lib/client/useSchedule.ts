@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import type { ScheduleOptions } from '@/lib/scheduling/cpm';
+import type { DuplicateBody } from '@/lib/scheduling/validate';
 import type { TaskInput, TaskItem, TaskPatch } from '@/lib/types';
 
 export interface ScheduleState {
@@ -78,8 +79,13 @@ export function useSchedule() {
     async (id: string) => apply(await call<ScheduleState>(`/api/tasks/${encodeURIComponent(id)}`, { method: 'DELETE' })),
     [apply],
   );
+  const duplicate = useCallback(
+    async (id: string, body: DuplicateBody) =>
+      apply(await call<ScheduleState & { id: string }>(`/api/tasks/${encodeURIComponent(id)}/duplicate`, { method: 'POST', body: JSON.stringify(body) })),
+    [apply],
+  );
 
-  return { ...state, loading, error, refresh, create, update, remove };
+  return { ...state, loading, error, refresh, create, update, remove, duplicate };
 }
 
 export function useViewer() {

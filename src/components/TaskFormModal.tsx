@@ -31,6 +31,7 @@ interface Props {
   onCreate: (input: TaskInput) => Promise<unknown>;
   onUpdate: (id: string, patch: Partial<TaskInput>) => Promise<unknown>;
   onDelete: (id: string) => Promise<unknown>;
+  onDuplicate: (task: TaskItem) => void;
 }
 
 interface FormState {
@@ -94,7 +95,7 @@ export function TaskFormModal(props: Props) {
   return <TaskForm key={key} {...props} request={request} />;
 }
 
-function TaskForm({ request, tasks, canEdit, scheduleMode, onClose, onCreate, onUpdate, onDelete }: Props & { request: FormRequest }) {
+function TaskForm({ request, tasks, canEdit, scheduleMode, onClose, onCreate, onUpdate, onDelete, onDuplicate }: Props & { request: FormRequest }) {
   const [form, setForm] = useState<FormState>(() => initialState(request));
   const [saving, setSaving] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -201,6 +202,11 @@ function TaskForm({ request, tasks, canEdit, scheduleMode, onClose, onCreate, on
           {editing && canEdit && (
             <Button variant="ghost" className="text-red-600 hover:bg-red-50" onClick={remove} disabled={saving}>
               Delete
+            </Button>
+          )}
+          {editing && canEdit && (
+            <Button variant="ghost" onClick={() => onDuplicate(editing)} disabled={saving} title="Copy this item and everything under it to a new date">
+              Duplicate…
             </Button>
           )}
           <div className="ml-auto flex items-center gap-2">

@@ -4,7 +4,9 @@ import { useCallback, useEffect, useState } from 'react';
 import { signIn, signOut } from 'next-auth/react';
 import { buildHierarchy, descendants } from '@/lib/scheduling';
 import { useSchedule, useViewer } from '@/lib/client/useSchedule';
+import type { DuplicateBody } from '@/lib/scheduling/validate';
 import type { TaskItem } from '@/lib/types';
+import { DuplicateModal } from './DuplicateModal';
 import { TaskFormModal, type FormRequest } from './TaskFormModal';
 import { Button, cx } from './ui';
 import { CalendarView } from './views/CalendarView';
@@ -30,6 +32,7 @@ export function AppShell() {
   const canEdit = Boolean(viewer?.isAdmin);
   const [view, setView] = useState<View>('gantt');
   const [form, setForm] = useState<FormRequest | null>(null);
+  const [duplicating, setDuplicating] = useState<TaskItem | null>(null);
   const [toast, setToast] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
@@ -71,6 +74,17 @@ export function AppShell() {
 
   const onAdd = useCallback((defaults?: AddDefaults) => setForm({ mode: 'create', defaults }), []);
   const onOpen = useCallback((task: TaskItem) => setForm({ mode: 'edit', task }), []);
+  const onDuplicate = useCallback((task: TaskItem) => {
+    setForm(null);
+    setDuplicating(task);
+  }, []);
+  const duplicate = useCallback(
+    async (id: string, body: DuplicateBody) => {
+      const n = 1 + descendants(buildHierarchy(schedule.tasks), id).length;
+      return withToast(schedule.duplicate, `Created "${body.title.trim()}" (${n} item${n === 1 ? '' : 's'})`)(id, body);
+    },
+    [schedule.tasks, schedule.duplicate, withToast],
+  );
   const onDelete = useCallback(
     async (task: TaskItem) => {
       const n = descendants(buildHierarchy(schedule.tasks), task.id).length;
@@ -103,6 +117,7 @@ export function AppShell() {
     onAdd,
     onUpdate: withToast(schedule.update),
     onDelete,
+    onDuplicate,
   };
 
   return (
@@ -180,7 +195,10 @@ export function AppShell() {
         onCreate={withToast(schedule.create, 'Added to schedule')}
         onUpdate={withToast(schedule.update, 'Saved')}
         onDelete={withToast(schedule.remove, 'Deleted')}
+        onDuplicate={onDuplicate}
       />
+
+      <DuplicateModal root={duplicating} tasks={schedule.tasks} scheduleMode={schedule.mode} onClose={() => setDuplicating(null)} onDuplicate={duplicate} />
 
       {toast && (
         <div role="status" className={cx('fixed bottom-4 left-1/2 z-[60] max-w-[90vw] -translate-x-1/2 rounded-md px-4 py-2 text-sm shadow-lg', toast.kind === 'ok' ? 'bg-slate-900 text-white' : 'bg-red-600 text-white')}>

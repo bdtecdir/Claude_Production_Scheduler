@@ -4,7 +4,7 @@
  * get cascading recalculation and cycle detection for free.
  */
 import type { TaskDependency, TaskInput, TaskItem, TaskPatch } from '../types';
-import { addDays, endDateFor } from './dates';
+import { addDays, diffDays, endDateFor } from './dates';
 import { schedule, type ScheduleOptions, type ScheduleResult } from './cpm';
 import { buildHierarchy, descendants } from './hierarchy';
 import { assertValidPatch, ValidationError } from './validate';
@@ -121,6 +121,85 @@ export function deleteTask(
     ...result,
     changedIds: [...new Set([...result.changedIds, ...stripped])],
     deletedIds: [...removed],
+  };
+}
+
+export interface DuplicateOptions {
+  /** Title for the copy of the group's top task. */
+  title: string;
+  /** Plain-text find/replace applied to every other copied title (e.g. "Hamlet" -> "Macbeth"). */
+  rename?: { find: string; replace: string };
+  /** Item inside the group whose new date positions the copy. */
+  anchorId: string;
+  anchorDate: string;
+  /** Copy links to items outside the group (default: dropped). */
+  keepExternalLinks?: boolean;
+  /** Copy assigned people (default: kept). */
+  keepAssignments?: boolean;
+}
+
+/** Tag that marks a group as a reusable template; copies don't inherit it. */
+export const TEMPLATE_TAG = 'template';
+
+/**
+ * Copies a task and its whole subtree as a sibling of the original, shifted so
+ * the anchor lands on `anchorDate`. Every item keeps its offset from the anchor;
+ * links inside the group are rewired to the copies. Progress starts at 0.
+ */
+export function duplicateGroup(
+  tasks: readonly TaskItem[],
+  rootId: string,
+  options: DuplicateOptions,
+  newId: () => string,
+  now: string,
+  opts?: ScheduleOptions,
+): MutationResult & { rootId: string } {
+  if (!tasks.some((t) => t.id === rootId)) throw new ValidationError(`Task ${rootId} was not found`);
+  // Use freshly rolled-up dates so a summary anchor has its real span.
+  const current = schedule(tasks, opts).tasks;
+  const h = buildHierarchy(current);
+  const groupIds = [rootId, ...descendants(h, rootId)];
+  if (!groupIds.includes(options.anchorId)) throw new ValidationError('The anchor must be inside the group being duplicated');
+  const title = options.title.trim();
+  if (!title) throw new ValidationError('Give the copy a name');
+
+  const delta = diffDays(h.byId.get(options.anchorId)!.startDate, options.anchorDate);
+  const idMap = new Map(groupIds.map((id) => [id, newId()]));
+  const find = options.rename?.find.trim() ?? '';
+  const baseTime = Date.parse(now);
+
+  const copies = groupIds.map((id, i) => {
+    const t = h.byId.get(id)!;
+    const copyTitle = id === rootId ? title : find ? t.title.split(find).join(options.rename!.replace) : t.title;
+    return normalizeTask({
+      ...t,
+      id: idMap.get(id)!,
+      title: copyTitle.trim().slice(0, 200) || t.title,
+      parentId: id === rootId ? (t.parentId ?? null) : idMap.get(t.parentId!)!,
+      startDate: addDays(t.startDate, delta),
+      progressPercent: 0,
+      dependencies: t.dependencies
+        .filter((d) => idMap.has(d.predecessorId) || options.keepExternalLinks)
+        .map((d) => ({ ...d, predecessorId: idMap.get(d.predecessorId) ?? d.predecessorId })),
+      assignedPersonnelIds: options.keepAssignments === false ? [] : (t.assignedPersonnelIds ?? []),
+      tags: (t.tags ?? []).filter((tag) => tag.toLowerCase() !== TEMPLATE_TAG),
+      isCritical: undefined,
+      totalFloat: undefined,
+      // Distinct, ordered timestamps keep sibling order identical to the original.
+      createdAt: new Date(baseTime + i).toISOString(),
+      updatedAt: now,
+    });
+  });
+
+  const next = [...current, ...copies];
+  for (const c of copies) assertValidPatch(next, c.id);
+  const newIds = copies.map((c) => c.id);
+  const result = schedule(next, { ...opts, anchors: newIds });
+  return {
+    ...result,
+    changedIds: [...new Set([...newIds, ...result.changedIds])],
+    deletedIds: [],
+    rootId: idMap.get(rootId)!,
   };
 }
 

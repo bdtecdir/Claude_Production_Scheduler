@@ -31,7 +31,7 @@ function compareWbs(a: string, b: string) {
   return 0;
 }
 
-export function TableView({ tasks, canEdit, onOpen, onAdd, onUpdate, onDelete }: ViewProps) {
+export function TableView({ tasks, canEdit, onOpen, onAdd, onUpdate, onDelete, onDuplicate }: ViewProps) {
   const [query, setQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
   const [criticalOnly, setCriticalOnly] = useState(false);
@@ -115,7 +115,7 @@ export function TableView({ tasks, canEdit, onOpen, onAdd, onUpdate, onDelete }:
           </thead>
           <tbody>
             {visible.map((row) => (
-              <Row key={row.task.id} row={row} wbs={wbs} indent={indent} canEdit={canEdit} onOpen={onOpen} onAdd={onAdd} onUpdate={onUpdate} onDelete={onDelete} />
+              <Row key={row.task.id} row={row} wbs={wbs} indent={indent} canEdit={canEdit} onOpen={onOpen} onAdd={onAdd} onUpdate={onUpdate} onDelete={onDelete} onDuplicate={onDuplicate} />
             ))}
             {visible.length === 0 && (
               <tr>
@@ -140,7 +140,8 @@ function Row({
   onAdd,
   onUpdate,
   onDelete,
-}: Pick<ViewProps, 'canEdit' | 'onOpen' | 'onAdd' | 'onUpdate' | 'onDelete'> & { row: TreeRow; wbs: Map<string, string>; indent: boolean }) {
+  onDuplicate,
+}: Pick<ViewProps, 'canEdit' | 'onOpen' | 'onAdd' | 'onUpdate' | 'onDelete' | 'onDuplicate'> & { row: TreeRow; wbs: Map<string, string>; indent: boolean }) {
   const { task, hasChildren } = row;
   const locked = !canEdit || hasChildren; // summary values are rolled up
   const save = (patch: TaskPatch) => onUpdate(task.id, patch);
@@ -194,7 +195,7 @@ function Row({
         <CriticalBadge critical={task.isCritical} float={task.totalFloat} />
       </Td>
       <Td className="text-right">
-        <ActionMenu task={task} canEdit={canEdit} onOpen={onOpen} onAdd={onAdd} onDelete={onDelete} />
+        <ActionMenu task={task} canEdit={canEdit} onOpen={onOpen} onAdd={onAdd} onDelete={onDelete} onDuplicate={onDuplicate} />
       </Td>
     </tr>
   );
@@ -308,7 +309,7 @@ function InlineNumber({ value, onSave, min, max, suffix }: { value: number; onSa
   );
 }
 
-function ActionMenu({ task, canEdit, onOpen, onAdd, onDelete }: { task: TaskItem } & Pick<ViewProps, 'canEdit' | 'onOpen' | 'onAdd' | 'onDelete'>) {
+function ActionMenu({ task, canEdit, onOpen, onAdd, onDelete, onDuplicate }: { task: TaskItem } & Pick<ViewProps, 'canEdit' | 'onOpen' | 'onAdd' | 'onDelete' | 'onDuplicate'>) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -341,6 +342,9 @@ function ActionMenu({ task, canEdit, onOpen, onAdd, onDelete }: { task: TaskItem
               Add subtask
             </button>
           )}
+          <button role="menuitem" type="button" className={item} onClick={() => (setOpen(false), onDuplicate(task))}>
+            Duplicate…
+          </button>
           <button role="menuitem" type="button" className={cx(item, 'text-red-600 hover:bg-red-50')} onClick={() => (setOpen(false), onDelete(task))}>
             Delete
           </button>

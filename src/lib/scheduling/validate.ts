@@ -96,6 +96,42 @@ export function parseTaskBody(body: unknown, partial: boolean): TaskPatch {
   return out;
 }
 
+export interface DuplicateBody {
+  title: string;
+  rename?: { find: string; replace: string };
+  anchorId: string;
+  anchorDate: string;
+  keepExternalLinks: boolean;
+  keepAssignments: boolean;
+}
+
+/** Parses a "duplicate group" request body. */
+export function parseDuplicateBody(body: unknown): DuplicateBody {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) fail('Request body must be a JSON object');
+  const b = body as Record<string, unknown>;
+  if (typeof b.title !== 'string' || !b.title.trim()) fail('title is required');
+  if (b.title.length > MAX_TITLE) fail(`title must be at most ${MAX_TITLE} characters`);
+  if (typeof b.anchorId !== 'string' || !b.anchorId) fail('anchorId is required');
+  if (!isIsoDate(b.anchorDate)) fail('anchorDate must be a valid YYYY-MM-DD date');
+  let rename: DuplicateBody['rename'];
+  if (b.rename !== undefined && b.rename !== null) {
+    const r = b.rename as Record<string, unknown>;
+    if (typeof r !== 'object' || typeof r.find !== 'string' || typeof r.replace !== 'string') {
+      fail('rename must be { find, replace } strings');
+    }
+    if (r.find.length > MAX_TITLE || r.replace.length > MAX_TITLE) fail(`rename text must be at most ${MAX_TITLE} characters`);
+    rename = { find: r.find, replace: r.replace };
+  }
+  return {
+    title: b.title,
+    rename,
+    anchorId: b.anchorId,
+    anchorDate: b.anchorDate,
+    keepExternalLinks: b.keepExternalLinks === true,
+    keepAssignments: b.keepAssignments !== false,
+  };
+}
+
 /** Cross-task checks for the task that was just created/edited. */
 export function assertValidPatch(tasks: readonly TaskItem[], id: string): void {
   const ids = new Set(tasks.map((t) => t.id));

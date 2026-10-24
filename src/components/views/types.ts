@@ -16,4 +16,6 @@ export interface ViewProps {
   onAdd: (defaults?: AddDefaults) => void;
   onUpdate: (id: string, patch: TaskPatch) => Promise<unknown>;
   onDelete: (task: TaskItem) => void;
+  /** Opens the "duplicate group" dialog for a task and its subtree. */
+  onDuplicate: (task: TaskItem) => void;
 }
