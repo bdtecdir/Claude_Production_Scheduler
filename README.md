@@ -85,6 +85,31 @@ npm run typecheck
 To use real Firestore locally, set `DATA_BACKEND=firestore` and `GOOGLE_CLOUD_PROJECT`, then run
 `gcloud auth application-default login`. Alternatively, set `FIRESTORE_EMULATOR_HOST`.
 
+## Setting up a new development machine
+
+Everything needed to deploy already lives in Google Cloud (secrets, Firestore, the service),
+so a new machine only needs the tools and a local env file.
+
+1. Install **Git**, **Node.js 20+** (LTS) and the **Google Cloud SDK**. On Windows, keep
+   "bundled Python" checked in the SDK installer. If `gcloud --version` says
+   "Python was not found", install Python 3.12 and point the SDK at it:
+   `[Environment]::SetEnvironmentVariable('CLOUDSDK_PYTHON', '<path to python.exe>', 'User')`.
+2. Clone the repository and install dependencies:
+   ```bash
+   git clone https://github.com/bdtecdir/Claude_Production_Scheduler.git
+   cd Claude_Production_Scheduler
+   npm ci
+   ```
+3. Create `.env.local`. It is not in git, by design. For local development:
+   ```
+   DATA_BACKEND=memory
+   AUTH_DEV_BYPASS=true
+   NEXTAUTH_URL=http://localhost:3000
+   NEXTAUTH_SECRET=anything-local
+   ```
+4. Run `npm test`, then `npm run dev`.
+5. To deploy from this machine, run `gcloud auth login` once, then run the deploy command below.
+
 ## Authentication
 
 1. In Google Cloud Console, go to **APIs & Services → Credentials** and create an OAuth client ID
