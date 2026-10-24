@@ -13,9 +13,17 @@ export interface Hierarchy {
   parentOf: Map<string, string | null>;
 }
 
-/** Stable sibling order: creation time, then id. */
+/**
+ * Siblings read in process order: start date, then end date (so a milestone
+ * comes before a task starting the same day), then creation time and id.
+ */
 export function compareSiblings(a: TaskItem, b: TaskItem): number {
-  return a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id);
+  return (
+    a.startDate.localeCompare(b.startDate) ||
+    a.endDate.localeCompare(b.endDate) ||
+    a.createdAt.localeCompare(b.createdAt) ||
+    a.id.localeCompare(b.id)
+  );
 }
 
 export function buildHierarchy(tasks: readonly TaskItem[]): Hierarchy {

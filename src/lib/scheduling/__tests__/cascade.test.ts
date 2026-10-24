@@ -150,4 +150,18 @@ describe('validation and formatting', () => {
     expect(formatDependency(dep('A', 'FS', 2), wbs)).toBe('1FS+2d');
     expect(formatDependency(dep('B', 'SS', -1), wbs)).toBe('2SS-1d');
   });
+
+  it('orders siblings by date, not creation order, and re-sorts when dates move', () => {
+    const tasks = [
+      mk('P', MON, 1),
+      mk('opening', '2026-02-20', 0, { parentId: 'P' }), // created first
+      mk('tech', '2026-02-14', 5, { parentId: 'P' }),
+      mk('design', MON, 20, { parentId: 'P' }),
+      mk('kickoff', '2026-02-14', 0, { parentId: 'P' }), // same start as tech: milestone first
+    ];
+    const order = (ts: typeof tasks) => flattenTree(ts).map((r) => r.task.id);
+    expect(order(tasks)).toEqual(['P', 'design', 'kickoff', 'tech', 'opening']);
+    const moved = updateTask(tasks, 'opening', { startDate: '2026-01-01' }, NOW).tasks;
+    expect(order(moved).slice(0, 3)).toEqual(['P', 'opening', 'design']);
+  });
 });

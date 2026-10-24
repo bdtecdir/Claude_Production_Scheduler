@@ -104,7 +104,14 @@ export function GanttView({ tasks, canEdit, scheduleMode, onOpen, onAdd, onUpdat
   const today = todayIso();
 
   const shown = preview ?? tasks;
-  const rows = useMemo(() => flattenTree(shown, collapsed), [shown, collapsed]);
+  // Row order comes from committed dates so rows don't reshuffle mid-drag;
+  // the preview only moves the bars.
+  const rows = useMemo(() => {
+    const base = flattenTree(tasks, collapsed);
+    if (!preview) return base;
+    const byId = new Map(preview.map((t) => [t.id, t]));
+    return base.map((r) => ({ ...r, task: byId.get(r.task.id) ?? r.task }));
+  }, [tasks, preview, collapsed]);
   const rowIndex = useMemo(() => new Map(rows.map((r, i) => [r.task.id, i])), [rows]);
   const original = useMemo(() => new Map(tasks.map((t) => [t.id, t])), [tasks]);
 
