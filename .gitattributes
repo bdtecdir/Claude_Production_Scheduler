@@ -1,0 +1,6 @@
+# Keep LF everywhere (deploy.sh, Dockerfile and the Linux build need it);
+# PowerShell scripts use CRLF.
+* text=auto eol=lf
+*.ps1 text eol=crlf
+*.png binary
+*.ico binary

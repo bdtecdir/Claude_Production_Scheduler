@@ -1,0 +1,14 @@
+# Files excluded from `gcloud builds submit` uploads (Cloud Build context).
+# Never upload local secrets or build output.
+.gcloudignore
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+node_modules/
+.next/
+coverage/
+*.tsbuildinfo
+.claude/
+.vscode/

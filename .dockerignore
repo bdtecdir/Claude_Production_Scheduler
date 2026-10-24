@@ -1,0 +1,16 @@
+node_modules
+.next
+.git
+coverage
+.env
+.env.*
+!.env.example
+*.tsbuildinfo
+.claude
+.vscode
+Dockerfile
+.dockerignore
+.gcloudignore
+deploy.sh
+deploy.ps1
+README.md
