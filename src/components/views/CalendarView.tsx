@@ -32,6 +32,39 @@ function shiftMonth(first: string, delta: number) {
   return d.toISOString().slice(0, 10);
 }
 
+function monthOf(year: number, monthIndex: number) {
+  return `${year}-${String(monthIndex + 1).padStart(2, '0')}-01`;
+}
+
+const MONTH_NAMES = Array.from({ length: 12 }, (_, i) =>
+  new Date(Date.UTC(2000, i, 1)).toLocaleDateString(undefined, { month: 'long', timeZone: 'UTC' }),
+);
+/** Years offered either side of the schedule's span in the year picker. */
+const YEAR_PADDING = 5;
+
+/** Heading-sized select: reads as part of the month label, opens as a picker. */
+function PickerSelect({ label, value, onChange, options }: { label: string; value: number; onChange: (v: number) => void; options: { value: number; label: string }[] }) {
+  return (
+    <span className="relative inline-flex items-center">
+      <select
+        aria-label={label}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="cursor-pointer appearance-none rounded-md border border-transparent bg-transparent py-0.5 pl-2 pr-7 text-xl font-semibold text-slate-900 hover:border-slate-200 hover:bg-slate-50 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+      >
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+      <svg className="pointer-events-none absolute right-2 h-4 w-4 text-slate-500" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+        <path d="M5.3 7.3a1 1 0 0 1 1.4 0L10 10.6l3.3-3.3a1 1 0 1 1 1.4 1.4l-4 4a1 1 0 0 1-1.4 0l-4-4a1 1 0 0 1 0-1.4z" />
+      </svg>
+    </span>
+  );
+}
+
 /** Greedy lane packing of the items overlapping one week. */
 function layoutWeek(tasks: TaskItem[], weekStartIso: string): { placed: Placed[]; lanes: number } {
   const weekEnd = addDays(weekStartIso, 6);
@@ -78,11 +111,22 @@ export function CalendarView({ tasks, canEdit, onOpen, onAdd }: ViewProps) {
   }, [month, weekStart]);
 
   const headers = weekStart === 'monday' ? [...DAY_NAMES.slice(1), DAY_NAMES[0]] : DAY_NAMES;
-  const monthLabel = new Date(`${month}T00:00:00Z`).toLocaleDateString(undefined, { month: 'long', year: 'numeric', timeZone: 'UTC' });
+  const year = Number(month.slice(0, 4));
+  const monthIndex = Number(month.slice(5, 7)) - 1;
+
+  const years = useMemo(() => {
+    let min = Math.min(year, Number(today.slice(0, 4)));
+    let max = Math.max(year, Number(today.slice(0, 4)));
+    for (const t of tasks) {
+      min = Math.min(min, Number(t.startDate.slice(0, 4)));
+      max = Math.max(max, Number(t.endDate.slice(0, 4)));
+    }
+    return Array.from({ length: max - min + 1 + 2 * YEAR_PADDING }, (_, i) => min - YEAR_PADDING + i);
+  }, [tasks, year, today]);
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 bg-white px-4 py-2">
+      <div className="grid grid-cols-1 items-center gap-2 border-b border-slate-200 bg-white px-4 py-2 md:grid-cols-[1fr_auto_1fr]">
         <div className="flex items-center gap-1">
           <Button size="sm" variant="ghost" aria-label="Previous month" onClick={() => setMonth((m) => shiftMonth(m, -1))}>
             ‹
@@ -94,8 +138,11 @@ export function CalendarView({ tasks, canEdit, onOpen, onAdd }: ViewProps) {
             ›
           </Button>
         </div>
-        <h2 className="min-w-[10rem] text-base font-semibold text-slate-900">{monthLabel}</h2>
-        <div className="ml-auto flex flex-wrap items-center gap-3">
+        <h2 className="flex items-center justify-center gap-1">
+          <PickerSelect label="Month" value={monthIndex} onChange={(m) => setMonth(monthOf(year, m))} options={MONTH_NAMES.map((name, i) => ({ value: i, label: name }))} />
+          <PickerSelect label="Year" value={year} onChange={(y) => setMonth(monthOf(y, monthIndex))} options={years.map((y) => ({ value: y, label: String(y) }))} />
+        </h2>
+        <div className="flex flex-wrap items-center gap-3 md:justify-end">
           <label className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600">
             <input type="checkbox" checked={showSummaries} onChange={(e) => setShowSummaries(e.target.checked)} className="rounded border-slate-300 text-indigo-600" />
             Show summary tasks
